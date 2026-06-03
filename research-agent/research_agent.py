@@ -32,6 +32,7 @@ import threading
 import webbrowser
 import urllib.parse
 import urllib.request
+import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from html.parser import HTMLParser
 
@@ -42,9 +43,9 @@ DEPLOYED      = bool(os.environ.get("PORT"))
 PORT          = int(os.environ.get("PORT") or os.environ.get("AGENT_PORT", "8000"))
 HOST          = "0.0.0.0" if DEPLOYED else "127.0.0.1"
 GROQ_MODEL    = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
-MAX_STEPS     = int(os.environ.get("AGENT_MAX_STEPS", "8"))   # safety cap on the think/act loop
+MAX_STEPS     = int(os.environ.get("AGENT_MAX_STEPS", "6"))   # safety cap on the think/act loop
 SEARCH_RESULTS = 5         # results pulled per search
-PAGE_CHARS    = 3500       # max characters of a page handed to the model
+PAGE_CHARS    = 3000       # max characters of a page handed to the model
 HEARTBEAT_SEC = 15         # SSE keep-alive ping interval
 
 # Optional password gate. When APP_PASSWORD is set (e.g. on the host), every request needs
@@ -141,9 +142,44 @@ def groq_chat(messages, temperature=0.3, force_json=True):
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=90) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    return data["choices"][0]["message"]["content"]
+
+    last_msg = None
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            return data["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as e:
+            body = ""
+            try:
+                body = e.read().decode("utf-8", "replace")
+            except Exception:
+                pass
+            last_msg = _groq_error_message(e.code, body)
+            # 429 = rate limited, 503 = overloaded -> wait and retry with backoff.
+            if e.code in (429, 503) and attempt < 3:
+                retry_after = (e.headers.get("Retry-After") or "").strip()
+                wait = float(retry_after) if retry_after.replace(".", "", 1).isdigit() else (2 ** attempt) * 4
+                wait = min(wait, 30)
+                publish("note", "Rate limited — waiting",
+                        f"Groq is busy ({e.code}); retrying in {int(wait)}s…")
+                time.sleep(wait)
+                continue
+            raise RuntimeError(last_msg)
+    raise RuntimeError(last_msg or "Groq request failed after several retries.")
+
+
+def _groq_error_message(code, body):
+    """Turn a Groq error body into a short, human-friendly message."""
+    msg = body
+    try:
+        msg = json.loads(body).get("error", {}).get("message", body)
+    except Exception:
+        pass
+    msg = (msg or "").strip()
+    if code == 429:
+        return "Groq rate limit reached (free tier). " + (msg or "Please wait a minute and try again.")
+    return f"Groq error {code}: {msg[:300]}"
 
 
 # ============================== TOOLS ==============================
