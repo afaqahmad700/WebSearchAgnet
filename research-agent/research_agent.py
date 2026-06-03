@@ -93,9 +93,11 @@ def record_feedback(entry):
 # ============================== THE BRAIN (Groq) ==============================
 def load_api_key():
     """Find the Groq key. An environment variable wins; otherwise read it from a local
-    key file so you never have to set anything by hand. Returns the key or None."""
-    if os.environ.get("GROQ_API_KEY"):
-        return os.environ["GROQ_API_KEY"]
+    key file so you never have to set anything by hand. Returns the key or None.
+    Always stripped of surrounding whitespace/newlines (a stray '\\n' breaks the auth header)."""
+    env_key = os.environ.get("GROQ_API_KEY")
+    if env_key and env_key.strip():
+        return env_key.strip()
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         os.path.join(here, "API KEY GROK.txt"),                 # next to this script
