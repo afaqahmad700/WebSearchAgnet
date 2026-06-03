@@ -1,0 +1,23 @@
+# Secrets — NEVER commit
+API KEY GROK.txt
+*api*key*.txt
+*API*KEY*.txt
+*.secret
+
+# clasp / Apps Script
+.clasprc.json          # local clasp login credentials — NEVER commit
+*.clasp.local.json
+
+# Node (only used by the GitHub Action; not committed)
+node_modules/
+npm-debug.log*
+
+# Python (research-agent)
+__pycache__/
+*.pyc
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
