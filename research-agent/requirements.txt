@@ -1,0 +1,2 @@
+# This app uses only the Python standard library — no packages required.
+# The file's presence tells the host (Render, etc.) to use a Python environment.

@@ -26,6 +26,7 @@ import re
 import json
 import html
 import time
+import base64
 import queue
 import threading
 import webbrowser
@@ -35,12 +36,21 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from html.parser import HTMLParser
 
 # ============================== CONFIG ==============================
-PORT          = int(os.environ.get("AGENT_PORT", "8000"))
+# Cloud hosts (Render, Railway, HF Spaces, etc.) inject a $PORT and expect the app to bind
+# 0.0.0.0. Locally we fall back to 127.0.0.1:8000 and auto-open a browser.
+DEPLOYED      = bool(os.environ.get("PORT"))
+PORT          = int(os.environ.get("PORT") or os.environ.get("AGENT_PORT", "8000"))
+HOST          = "0.0.0.0" if DEPLOYED else "127.0.0.1"
 GROQ_MODEL    = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 MAX_STEPS     = int(os.environ.get("AGENT_MAX_STEPS", "8"))   # safety cap on the think/act loop
 SEARCH_RESULTS = 5         # results pulled per search
 PAGE_CHARS    = 3500       # max characters of a page handed to the model
 HEARTBEAT_SEC = 15         # SSE keep-alive ping interval
+
+# Optional password gate. When APP_PASSWORD is set (e.g. on the host), every request needs
+# HTTP Basic auth. Left unset locally, so local use stays friction-free.
+AUTH_USER     = os.environ.get("APP_USER", "user")
+AUTH_PASSWORD = os.environ.get("APP_PASSWORD", "")
 FEEDBACK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "feedback.jsonl")
 
 
@@ -751,7 +761,27 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass  # quiet console
 
+    def _authed(self):
+        """If a password is configured, require HTTP Basic auth. Returns True if allowed."""
+        if not AUTH_PASSWORD:
+            return True
+        header = self.headers.get("Authorization", "")
+        if header.startswith("Basic "):
+            try:
+                user, _, pw = base64.b64decode(header[6:]).decode("utf-8").partition(":")
+                if user == AUTH_USER and pw == AUTH_PASSWORD:
+                    return True
+            except Exception:
+                pass
+        self.send_response(401)
+        self.send_header("WWW-Authenticate", 'Basic realm="Research Agent"')
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return False
+
     def do_GET(self):
+        if not self._authed():
+            return
         if self.path == "/" or self.path.startswith("/index"):
             self._send(200, "text/html; charset=utf-8", DASHBOARD_HTML.encode("utf-8"))
         elif self.path == "/events":
@@ -760,6 +790,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, "text/plain", b"not found")
 
     def do_POST(self):
+        if not self._authed():
+            return
         if self.path == "/run":
             payload = self._read_json()
             question = (payload.get("question") or "").strip()
@@ -843,14 +875,19 @@ def main():
         print("    Easiest fix: put your key in a file named 'API KEY GROK.txt' next to this")
         print("    script (or in D:\\claude), on a line starting with gsk_ .")
         print("    Free key: https://console.groq.com/keys\n")
-    url = f"http://localhost:{PORT}"
-    print(f"Live Research Agent running at {url}")
-    print("Open that URL in your browser (it should open automatically). Ctrl+C to stop.")
-    try:
-        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
-    except Exception:
-        pass
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    if AUTH_PASSWORD:
+        print(f"Password protection: ON (user '{AUTH_USER}').")
+    if DEPLOYED:
+        print(f"Research Agent serving on {HOST}:{PORT} (cloud mode).")
+    else:
+        url = f"http://localhost:{PORT}"
+        print(f"Live Research Agent running at {url}")
+        print("Your browser should open automatically. Ctrl+C to stop.")
+        try:
+            threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+        except Exception:
+            pass
+    server = ThreadingHTTPServer((HOST, PORT), Handler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
