@@ -818,6 +818,17 @@ class Handler(BaseHTTPRequestHandler):
         return False
 
     def do_GET(self):
+        # Diagnostics (no secret values revealed) — exempt from auth so it's always checkable.
+        if self.path == "/_diag":
+            info = {
+                "auth_enabled": bool(AUTH_PASSWORD),
+                "app_password_set": bool(AUTH_PASSWORD),
+                "app_user": AUTH_USER,
+                "groq_key_set": bool(load_api_key()),
+                "model": GROQ_MODEL,
+            }
+            self._send(200, "application/json", json.dumps(info).encode("utf-8"))
+            return
         if not self._authed():
             return
         if self.path == "/" or self.path.startswith("/index"):
