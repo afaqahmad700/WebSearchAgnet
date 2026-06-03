@@ -1,12 +1,11 @@
-# Render Blueprint — deploys the research agent from this repo.
+# Render Blueprint — optional alternative host (the live deploy currently runs on Hugging Face).
 # In Render: New + > Blueprint > pick this GitHub repo. Render reads this file.
 # Then set GROQ_API_KEY and APP_PASSWORD as secret env vars in the dashboard.
 services:
   - type: web
-    name: research-agent
+    name: web-search-agent
     runtime: python
     plan: free
-    rootDir: research-agent           # the app lives in this subfolder
     buildCommand: pip install -r requirements.txt
     startCommand: python research_agent.py
     envVars:

@@ -4,15 +4,7 @@ API KEY GROK.txt
 *API*KEY*.txt
 *.secret
 
-# clasp / Apps Script
-.clasprc.json          # local clasp login credentials — NEVER commit
-*.clasp.local.json
-
-# Node (only used by the GitHub Action; not committed)
-node_modules/
-npm-debug.log*
-
-# Python (research-agent)
+# Python
 __pycache__/
 *.pyc
 feedback.jsonl

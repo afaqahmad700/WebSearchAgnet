@@ -1,91 +1,107 @@
-# Gmail → Google Sheet + Drive + AI Draft Replies
+# Web Search AI Agent 🔎
 
-A Google Apps Script that watches your Gmail inbox and, for every new unread email:
+An AI research agent you **watch work in real time**. Ask a question in the browser; it searches
+the web, reads pages, reasons step-by-step, and returns a cited answer — then you can keep asking
+follow-up questions in a chat thread.
 
-1. **Logs a row** to a Google Sheet (date, sender, subject, body, attachment Yes/No, links).
-2. **Saves attachments** to a Drive folder named by date (`DD-MM-YYYY`).
-3. **Drafts an AI reply** (Groq or Gemini) when the email warrants one — saved as a **draft** for you to review and send.
-4. **Labels the thread** (`Sheet-Logged`) so it is never processed twice.
-
-### Features
-- **Send Status column** — shows `⏳ Pending owner to send` when a draft is created, and
-  automatically flips to `✅ Sent successfully` once you send the draft.
-- **Activity Log tab** — a live, timestamped feed of everything the script does, including a
-  `No new incoming emails` line on empty runs. Keep the Sheet open to watch it update live.
-- **Professional formatting** — coloured headers, frozen header row, filter, banded rows,
-  sensible column widths, wrapped body text, and status colour-coding.
-
----
-
-## One-time spreadsheet setup
-1. Open the bound Google Sheet (or set `SHEET_ID` in `GmailToSheet.gs`).
-2. In the Apps Script editor run **`setApiKey()`** once (after pasting your key), then delete the key from the function.
-   - Free Groq key: <https://console.groq.com/keys>
-   - Free Gemini key: <https://aistudio.google.com/apikey>
-3. Run **`installTrigger()`** once to schedule `processEmails()` every 5 minutes.
-4. (Optional) Run **`reformatSheets()`** to apply the professional look to an existing sheet.
-
----
-
-## GitHub auto-deploy (GitHub = source of truth → Apps Script)
-
-This repo is wired so that **every push to `main` redeploys the code to your Apps Script
-project** via [`clasp`](https://github.com/google/clasp) and GitHub Actions.
-
-### Prerequisites (one time, on your PC)
-You currently have **git** but not **Node.js**. Install Node LTS, then clasp:
-
-```powershell
-# 1. Install Node.js LTS from https://nodejs.org  (or: winget install OpenJS.NodeJS.LTS)
-# 2. Install clasp globally
-npm install -g @google/clasp
-# 3. Enable the Apps Script API for your account:  https://script.google.com/home/usersettings  (turn it ON)
-# 4. Log in (opens a browser)
-clasp login
+```
+think  →  search  →  read page  →  think  →  read page  →  …  →  final cited answer
 ```
 
-`clasp login` writes credentials to `C:\Users\<you>\.clasprc.json`. **Never commit this file**
-(it is already in `.gitignore`).
+- **Zero dependencies** — pure Python standard library. The only thing you install is Python.
+- **Brain:** Groq (free, fast) via your `GROQ_API_KEY`.
+- **Search:** [Tavily](https://tavily.com) if `TAVILY_API_KEY` is set (cleaner/more reliable),
+  otherwise it scrapes DuckDuckGo (no key needed).
+- **UI:** minimalist light theme, search-engine loading animation, emoji feedback, and a
+  conversational follow-up chat.
 
-### Link this repo to your Apps Script project
-1. In the Apps Script editor: **Project Settings → IDs → copy the Script ID**.
-2. Paste it into `.clasp.json` replacing `PASTE_YOUR_SCRIPT_ID_HERE`.
-3. Adjust `timeZone` in `appsscript.json` if you are not in `Asia/Karachi`.
-4. Test a manual deploy from your PC:
-   ```powershell
-   clasp push --force
-   ```
-
-### Push the repo to GitHub
-```powershell
-git add .
-git commit -m "Gmail-to-Sheet automation"
-# create an empty repo on github.com first, then:
-git branch -M main
-git remote add origin https://github.com/<you>/<repo>.git
-git push -u origin main
-```
-
-### Make the GitHub Action able to deploy
-The Action needs your clasp credentials as a secret:
-1. Open `C:\Users\<you>\.clasprc.json`, copy its **entire contents**.
-2. On GitHub: **Settings → Secrets and variables → Actions → New repository secret**
-   - Name: `CLASPRC_JSON`
-   - Value: paste the file contents.
-3. Done. From now on every `git push` to `main` runs `.github/workflows/deploy.yml`,
-   which installs clasp, restores your credentials, and runs `clasp push --force`.
-
-> **Direction of truth:** edit code locally / in GitHub and push → it deploys to Apps Script.
-> If you ever edit directly in the Apps Script web editor, run `clasp pull` to bring those
-> changes back into the repo before your next push (otherwise the push overwrites them).
+## 🌐 Live
+Deployed (password-protected) on Hugging Face Spaces:
+**https://aiautmationexplorer-web-search-agent.hf.space** — open the direct link in its own tab
+and log in with username `user` + your `APP_PASSWORD`.
 
 ---
 
-## Files
-| File | Purpose |
-|------|---------|
-| `GmailToSheet.gs` | The automation. |
-| `appsscript.json` | Apps Script manifest (timezone, runtime). |
-| `.clasp.json` | Links the repo to your Apps Script project (needs your Script ID). |
-| `.github/workflows/deploy.yml` | Auto-deploy on push to `main`. |
-| `.gitignore` | Keeps credentials/noise out of git. |
+## Run locally
+
+### 1. Install Python (one time)
+```powershell
+winget install Python.Python.3.12
+```
+Or download from <https://www.python.org/downloads/> and **tick "Add python.exe to PATH"**.
+Then confirm in a fresh terminal: `python --version` (should show `Python 3.12.x`).
+
+> If `python` opens the Microsoft Store instead: **Settings → Apps → Advanced app settings →
+> App execution aliases**, and turn **OFF** the `python.exe` / `python3.exe` aliases.
+
+### 2. Your Groq key (no setup needed)
+The agent **reads your key automatically** from a file named `API KEY GROK.txt` placed next to
+`research_agent.py`, on a line that starts with `gsk_`. The file is git-ignored, so it is never
+committed. (Free key: <https://console.groq.com/keys>.)
+
+> *(Optional)* You can instead set an environment variable, which overrides the file:
+> `$env:GROQ_API_KEY = "gsk_..."`.
+
+### 3. Run it
+```powershell
+cd D:\claude
+python research_agent.py
+```
+It prints **"Groq key: found (ready to run)"** and opens **http://localhost:8000**. Ask a
+question, watch the live loader, rate the answer, and ask follow-ups. Press **Ctrl+C** to stop.
+
+---
+
+## Using the app
+- **Ask** anything in the search box; a live loader shows it *searching* and *reading sources*.
+- **Answer** appears with a **Sources** list, rendered in clean markdown.
+- **Feedback:** rate each answer with the emoji row (😍 😊 😐 😕 😞) — saved to `feedback.jsonl`.
+- **Follow-ups:** the input bar stays at the bottom; follow-up questions keep the conversation
+  context (so "how is *it* different?" knows what "it" is).
+
+## Configuration (optional env vars)
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `GROQ_API_KEY` | _(from key file)_ | Your Groq key. **Required on a server** (no key file there). |
+| `APP_PASSWORD` | _(unset)_ | When set, the whole site requires this password (Basic auth). |
+| `APP_USER` | `user` | Username that goes with `APP_PASSWORD`. |
+| `PORT` | _(unset)_ | Set by cloud hosts → app binds publicly (`0.0.0.0`) and skips the browser pop. |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Which Groq model is the brain. |
+| `AGENT_MAX_STEPS` | `6` | Max think/act loops before it must answer. |
+| `AGENT_PORT` | `8000` | Local dashboard port. |
+| `TAVILY_API_KEY` | _(unset)_ | Use Tavily search instead of DuckDuckGo. |
+
+---
+
+## 🚀 Deploy it live
+
+The app is cloud-ready: when a host sets `PORT` it binds publicly, and `APP_PASSWORD` turns on a
+login gate. A `Dockerfile` (portable) and `render.yaml` (Render) are included.
+
+### Hugging Face Spaces (free, no credit card) — current live host
+1. Create a Space at <https://huggingface.co/new-space> → **SDK: Docker → Blank**, CPU basic.
+2. Upload **`research_agent.py`** and **`Dockerfile`** to the Space (root level).
+3. **Settings → Variables and secrets → New secret:** add `GROQ_API_KEY` and `APP_PASSWORD`.
+4. It builds and runs on port 7860. Open the direct `*.hf.space` URL → log in.
+
+> Changing a secret only takes effect after a **Factory rebuild / restart** of the Space.
+> Use the **direct** `*.hf.space` URL to log in — the browser blocks the password box inside the
+> embedded `huggingface.co/spaces/...` frame.
+
+### Render (alternative)
+New + → **Blueprint** → pick this repo (it reads `render.yaml`) → set `GROQ_API_KEY` and
+`APP_PASSWORD` as secrets → deploy. (Free tier may ask to verify a card.)
+
+### Security & limits when public
+- Keep `APP_PASSWORD` set so the site stays gated.
+- Every search **spends your Groq quota** — don't share the password widely.
+- Only **one research runs at a time** globally (a simple lock) — fine for a personal/demo site.
+
+---
+
+## How it works (1 paragraph)
+`research_agent.py` runs a tiny standard-library web server (`ThreadingHTTPServer`). The dashboard
+opens a **Server-Sent Events** stream (`/events`). When you submit a question, the agent loop asks
+Groq for a JSON decision (`search` / `read` / `finish`), executes that tool, feeds the result back,
+and **publishes every step** to the dashboard, which renders them as a live search loader and a
+final cited answer. Follow-ups resend prior Q&A as context. No database, no framework, no packages.
