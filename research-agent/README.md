@@ -33,21 +33,25 @@ You should see `Python 3.12.x` (not the "not found / Store" message).
 > If `python` still opens the Microsoft Store: **Settings → Apps → Advanced app settings →
 > App execution aliases**, and turn **OFF** the two `python.exe` / `python3.exe` aliases.
 
-## 2. Set your Groq key
-Free key at <https://console.groq.com/keys>. In the same terminal:
-```powershell
-# PowerShell
-$env:GROQ_API_KEY = "gsk_your_key_here"
-# (Optional, for better search) $env:TAVILY_API_KEY = "tvly_your_key_here"
-```
+## 2. Your Groq key (no setup needed)
+The agent **reads your key automatically** from a file named `API KEY GROK.txt` — placed either
+next to `research_agent.py` or one folder up in `D:\claude`. The file just needs a line that
+starts with `gsk_`. That's it; nothing to configure. (Free key: <https://console.groq.com/keys>.)
+
+> This key file is git-ignored, so it is never committed or pushed.
+>
+> *(Advanced/optional)* You can instead provide the key via an environment variable, which
+> overrides the file: `$env:GROQ_API_KEY = "gsk_..."`. For better search you can also set
+> `$env:TAVILY_API_KEY = "tvly_..."`.
 
 ## 3. Run it
 ```powershell
 cd D:\claude\research-agent
 python research_agent.py
 ```
-Your browser opens to **http://localhost:8000**. Type a question, hit **Research**, and watch
-it work. Press **Ctrl+C** in the terminal to stop.
+On start it prints **"Groq key: found (ready to run)."** and your browser opens to
+**http://localhost:8000**. Type a question, hit **Research**, and watch it work. Press **Ctrl+C**
+in the terminal to stop.
 
 ---
 

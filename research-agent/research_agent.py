@@ -58,10 +58,37 @@ def publish(ev_type, title="", content="", step=None):
 
 
 # ============================== THE BRAIN (Groq) ==============================
+def load_api_key():
+    """Find the Groq key. An environment variable wins; otherwise read it from a local
+    key file so you never have to set anything by hand. Returns the key or None."""
+    if os.environ.get("GROQ_API_KEY"):
+        return os.environ["GROQ_API_KEY"]
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(here, "API KEY GROK.txt"),                 # next to this script
+        os.path.join(os.path.dirname(here), "API KEY GROK.txt"),  # one folder up (D:\claude)
+        os.path.join(here, "groq_key.txt"),
+        os.path.join(here, ".groq_key"),
+    ]
+    for path in candidates:
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    token = line.strip()
+                    if token.startswith("gsk_"):
+                        os.environ["GROQ_API_KEY"] = token
+                        return token
+        except OSError:
+            continue
+    return None
+
+
 def groq_chat(messages, temperature=0.3, force_json=True):
-    key = os.environ.get("GROQ_API_KEY")
+    key = load_api_key()
     if not key:
-        raise RuntimeError("GROQ_API_KEY is not set. Get a free key at https://console.groq.com/keys")
+        raise RuntimeError("No Groq key found. Put it in 'API KEY GROK.txt' (a line starting "
+                           "with gsk_) or set the GROQ_API_KEY environment variable. "
+                           "Free key: https://console.groq.com/keys")
     body = {"model": GROQ_MODEL, "temperature": temperature, "messages": messages}
     if force_json:
         body["response_format"] = {"type": "json_object"}
@@ -480,10 +507,13 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    if not os.environ.get("GROQ_API_KEY"):
-        print("\n[!] GROQ_API_KEY is not set. The dashboard will load but runs will fail.")
-        print("    PowerShell:  $env:GROQ_API_KEY=\"your_key\"")
-        print("    CMD:         set GROQ_API_KEY=your_key\n")
+    if load_api_key():
+        print("Groq key: found (ready to run).")
+    else:
+        print("\n[!] No Groq key found. The dashboard will load but runs will fail.")
+        print("    Easiest fix: put your key in a file named 'API KEY GROK.txt' next to this")
+        print("    script (or in D:\\claude), on a line starting with gsk_ .")
+        print("    Free key: https://console.groq.com/keys\n")
     url = f"http://localhost:{PORT}"
     print(f"Live Research Agent running at {url}")
     print("Open that URL in your browser (it should open automatically). Ctrl+C to stop.")
