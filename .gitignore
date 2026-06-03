@@ -15,6 +15,7 @@ npm-debug.log*
 # Python (research-agent)
 __pycache__/
 *.pyc
+feedback.jsonl
 
 # OS / editor noise
 .DS_Store
